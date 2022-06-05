@@ -1,0 +1,6 @@
+librosa
+numpy
+python-vlc
+git+https://github.com/jayceslesar/demucs.git  # make separate API easier to use
+protobuf==3.20.0
+pygame
