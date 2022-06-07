@@ -44,9 +44,10 @@ def pre_process_components(splits_path: str) -> dict:
     for component in os.listdir(splits_path):
         component_path = os.path.join(splits_path, component)
         data, sampling_rate = librosa.load(component_path, sr=SAMPLING_RATE)
-        rms = librosa.feature.rms(y=data, frame_length=25)
+        S = librosa.magphase(librosa.stft(data, window=np.ones))[0]
+        rms = librosa.feature.rms(S=S)
         times = (librosa.times_like(rms)/2)[1:]
-        diff = np.diff(rms[0] * 3_000)
+        diff = rms[0]
         out[component] = {
             'rms_differential': np.abs(diff),
         }

@@ -72,9 +72,9 @@ class Visualizer(ABC):
 
 
 class BarVisualizer(Visualizer):
-    HEIGHT = 1000
+    HEIGHT = 600
     WIDTH = 1400
-    MAX_BAR_HEIGHT = 900
+    MAX_BAR_HEIGHT = 500
     BAR_WIDTH = 150
     NUM_BARS = 4
     DEFAULT_HEIGHT = 50
@@ -89,8 +89,9 @@ class BarVisualizer(Visualizer):
 
         pygame.init()
         self.display = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        self.display.fill(self.get_random_fill())
+        self.display.fill((255, 255, 255))
         self.bar_positions = []
+        self.previous_heights = [0, 0, 0, 0]
         self.channel_minmax_linspace = {}
         for channel in self.channels_data:
             self.channel_minmax_linspace[channel] = [
@@ -109,12 +110,32 @@ class BarVisualizer(Visualizer):
             current_bar_gap += self.BAR_WIDTH + self.BAR_GAP
 
     def render_channels(self, values: Dict[str, float]) -> None:
+        redraw = False
         for i, channel in enumerate(values):
-            position = self.bar_positions[i]
             linspace = self.channel_minmax_linspace[channel]
-            height = np.argmin(np.abs(linspace - values[channel]))
-            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(position, 100, self.BAR_WIDTH, height))
+
+            # find the closest linearly interpolated value from the min/max RMS diff of this channel
+            scaled_height = np.argmin(np.abs(linspace - values[channel]))
+
+            diff = scaled_height - self.previous_heights[i]
+            next_height = int(self.previous_heights[i] + (diff / 10))
+            if scaled_height < self.previous_heights[i]:
+                redraw = True
+
+            if next_height > self.MAX_BAR_HEIGHT:
+                next_height = self.MAX_BAR_HEIGHT
+            if next_height < 0:
+                next_height = 0
+
+            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(self.bar_positions[i], self.HEIGHT-next_height, self.BAR_WIDTH, self.HEIGHT))
+            self.previous_heights[i] = next_height
+
+        if redraw:
             pygame.display.flip()
+            self.display.fill((255, 255, 255))
+            for i, channel in enumerate(self.channels_data):
+                text_surface = self.font.render(channel, True, (0, 0, 0))
+                self.display.blit(text_surface, dest=(self.bar_positions[i], 50))
 
     def render_beat(self) -> None:
         self.display.fill(self.get_random_fill())
