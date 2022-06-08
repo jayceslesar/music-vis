@@ -11,9 +11,20 @@ import numpy as np
 
 
 class Visualizer(ABC):
+    """Abstract visualizer class."""
 
     def __init__(self, song_path: str, song_data: List[float], sampling_rate: int,
                  duration: float, beat_timestamps: List[float], channels_data: Dict[str, List[float]]) -> None:
+        """Create an instance of an abstract visualizer.
+
+        Args:
+            song_path (str): path to mp3 file of song
+            song_data (List[float]): flat list of song signals
+            sampling_rate (int): the sample we processed this file at
+            duration (float): length in seconds of the song
+            beat_timestamps (List[float]): timestamps of what librosa determined to be the beat
+            channels_data (Dict[str, List[float]]): {channel_name: [channel RMS values]}
+        """
         self.song_path = song_path
         self.song_data = song_data
         self.sampling_rate = sampling_rate
@@ -24,6 +35,7 @@ class Visualizer(ABC):
         self.current_beat_index = 0
 
     def play(self) -> None:
+        """Handle the play logic for all visualizer classes."""
         media_player = vlc.MediaPlayer()
         media = vlc.Media(self.song_path)
 
@@ -49,38 +61,69 @@ class Visualizer(ABC):
                 component_rms_values = {component: self.get_component_value(self.channels_data, 'rms_differential', component, current_timestamp_index) for component in self.channels_data}
                 self.render_channels(component_rms_values)
 
-            # if is_beat:
-            #     self.render_beat()
+            if is_beat:
+                self.render_beat()
+                self.current_beat_index += 1
 
             previous_timestamp_index = current_timestamp_index
 
     @abstractmethod
     def render_beat(self) -> None:
+        """Abstract method for derived classes to render a beat."""
         raise NotImplementedError
 
     @abstractmethod
     def render_channels(self, component_rms_values: Dict[str, float], is_beat: bool) -> None:
+        """Abstract method for derived class to render the channels while playing.
+
+        Args:
+            component_rms_values (Dict[str, float]): _description_
+            is_beat (bool): {channel_name: [channel RMS values]}
+        """
         raise NotImplementedError
 
     @staticmethod
-    def get_component_value(data: dict, key: str, component: str, index: int) -> float:
+    def get_component_value(data: Dict[str, List[float]], key: str, component: str, index: int) -> float:
+        """Helper function to get the correct component data for a given channel.
+
+        Args:
+            data (Dict[str, List[float]]): {channel_name: [channel RMS values]}
+            key (str): channel name
+            component (str): component in channel
+            index (int): index to pull
+
+        Returns:
+            float: value at the indexed keys
+        """
         return data[component][key][index]
 
     @staticmethod
     def get_random_fill() -> Tuple[int, int, int]:
+        """Get a random RGB color.
+
+        Returns:
+            Tuple[int, int, int]: random RGB color
+        """
         return (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
 
 
 class BarVisualizer(Visualizer):
-    HEIGHT = 600
-    WIDTH = 1400
-    MAX_BAR_HEIGHT = 500
-    BAR_WIDTH = 150
+    """Bar Visualizer class."""
+
+    HEIGHT = 1000
+    WIDTH = 1200
+    MAX_BAR_HEIGHT = 700
+
+    BAR_GAP_PROPORTION = 0.1
     NUM_BARS = 4
-    DEFAULT_HEIGHT = 50
-    BAR_GAP = (WIDTH / NUM_BARS) / (NUM_BARS + 1)
 
     def __init__(self, *args: List[Any], barcolors: List[str], background: Optional[str] = None) -> None:
+        """Initialize a BarVisualizer.
+
+        Args:
+            barcolors (List[str]): colors for the bars
+            background (Optional[str], optional): background image. Defaults to None.
+        """
         super().__init__(*args)
         if len(self.channels_data) != len(barcolors):
             raise ValueError('Number of channels and number of barcolors must match.')
@@ -89,7 +132,7 @@ class BarVisualizer(Visualizer):
 
         pygame.init()
         self.display = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        self.display.fill((255, 255, 255))
+        self.display.fill((0, 0, 0))
         self.bar_positions = []
         self.previous_heights = [0, 0, 0, 0]
         self.channel_minmax_linspace = {}
@@ -100,17 +143,22 @@ class BarVisualizer(Visualizer):
 
         self.font = pygame.font.Font(pygame.font.get_default_font(), 30)
 
-        current_bar_gap = self.BAR_GAP
+
+        bar_space_total_width = int(self.WIDTH - (self.WIDTH * self.BAR_GAP_PROPORTION))
+        bar_gap_total_width = self.WIDTH - bar_space_total_width
+        self.bar_width = int(bar_space_total_width / self.NUM_BARS)
+        self.bar_gap_width = int(bar_gap_total_width / (self.NUM_BARS + 1))
+
+        current_bar_gap = self.bar_gap_width
         for i in range(self.NUM_BARS):
-            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(current_bar_gap, 100, self.BAR_WIDTH, self.DEFAULT_HEIGHT))
+            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(current_bar_gap, 100, self.bar_width, 0))
             self.bar_positions.append(current_bar_gap)
             pygame.display.flip()
-            text_surface = self.font.render(list(self.channels_data.keys())[i], True, (0, 0, 0))
-            self.display.blit(text_surface, dest=(current_bar_gap, 50))
-            current_bar_gap += self.BAR_WIDTH + self.BAR_GAP
+            current_bar_gap += self.bar_width + self.bar_gap_width
 
     def render_channels(self, values: Dict[str, float]) -> None:
         redraw = False
+
         for i, channel in enumerate(values):
             linspace = self.channel_minmax_linspace[channel]
 
@@ -118,7 +166,7 @@ class BarVisualizer(Visualizer):
             scaled_height = np.argmin(np.abs(linspace - values[channel]))
 
             diff = scaled_height - self.previous_heights[i]
-            next_height = int(self.previous_heights[i] + (diff / 10))
+            next_height = int(self.previous_heights[i] + (diff / 15))
             if scaled_height < self.previous_heights[i]:
                 redraw = True
 
@@ -127,21 +175,12 @@ class BarVisualizer(Visualizer):
             if next_height < 0:
                 next_height = 0
 
-            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(self.bar_positions[i], self.HEIGHT-next_height, self.BAR_WIDTH, self.HEIGHT))
+            pygame.draw.rect(self.display, self.barcolors[i], pygame.Rect(self.bar_positions[i], self.HEIGHT-next_height, self.bar_width, self.HEIGHT))
             self.previous_heights[i] = next_height
 
         if redraw:
             pygame.display.flip()
-            self.display.fill((255, 255, 255))
-            for i, channel in enumerate(self.channels_data):
-                text_surface = self.font.render(channel, True, (0, 0, 0))
-                self.display.blit(text_surface, dest=(self.bar_positions[i], 50))
+            self.display.fill((0, 0, 0))
 
     def render_beat(self) -> None:
-        self.display.fill(self.get_random_fill())
-        pygame.display.flip()
-        self.current_beat_index += 1
-
-
-class CircleVisualizer(Visualizer):
-    pass
+        pass

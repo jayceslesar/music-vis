@@ -63,18 +63,21 @@ def get_component_value(data: dict, key: str, component: str, index: int) -> flo
 def main():
     # preprocess everything
     data_dir = 'data'
-    song_name = 'perfume_del-water-gap.mp3'
+    song_name = 'dark-red_steve-lacy.mp3'
     song = os.path.join(data_dir, song_name)
     os.makedirs(data_dir, exist_ok=True)
     expected_splits = ['bass', 'drums', 'other', 'vocals']
     actual_split_counts = 0
     split_files = os.path.join('separated', 'mdx_extra_q', os.path.splitext(song_name)[0])
-    for split_file in os.listdir(split_files):
-        if os.path.splitext(split_file)[0] in expected_splits:
-            actual_split_counts += 1
+    try:
+        for split_file in os.listdir(split_files):
+            if os.path.splitext(split_file)[0] in expected_splits:
+                actual_split_counts += 1
+    except FileNotFoundError:
+        actual_split_counts = 0
 
     needs_split = False
-    if not actual_split_counts == len(expected_splits):
+    if actual_split_counts != len(expected_splits):
         print('Missing at least 1 split track.')
         needs_split = True
     data, sampling_rate, duration, tempo, beat_timestamps = pre_process(song, needs_split)
