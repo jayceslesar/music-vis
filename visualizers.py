@@ -180,6 +180,3 @@ class BarVisualizer(Visualizer):
         if redraw:
             pygame.display.flip()
             self.display.fill((0, 0, 0))
-
-    def render_beat(self) -> None:
-        pass
