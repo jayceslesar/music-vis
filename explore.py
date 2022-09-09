@@ -80,6 +80,7 @@ def main():
     if actual_split_counts != len(expected_splits):
         print('Missing at least 1 split track.')
         needs_split = True
+
     data, sampling_rate, duration, tempo, beat_timestamps = pre_process(song, needs_split)
 
     component_data = pre_process_components(split_files)

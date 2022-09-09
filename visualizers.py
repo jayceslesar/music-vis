@@ -1,4 +1,5 @@
 """Visualizer Classes."""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Tuple
@@ -13,17 +14,17 @@ import numpy as np
 class Visualizer(ABC):
     """Abstract visualizer class."""
 
-    def __init__(self, song_path: str, song_data: List[float], sampling_rate: int,
-                 duration: float, beat_timestamps: List[float], channels_data: Dict[str, List[float]]) -> None:
+    def __init__(self, song_path: str, song_data: list[float], sampling_rate: int,
+                 duration: float, beat_timestamps: list[float], channels_data: dict[str, list[float]]) -> None:
         """Create an instance of an abstract visualizer.
 
         Args:
-            song_path (str): path to mp3 file of song
-            song_data (List[float]): flat list of song signals
-            sampling_rate (int): the sample we processed this file at
-            duration (float): length in seconds of the song
-            beat_timestamps (List[float]): timestamps of what librosa determined to be the beat
-            channels_data (Dict[str, List[float]]): {channel_name: [channel RMS values]}
+            song_path: path to mp3 file of song
+            song_data: flat list of song signals
+            sampling_rate: the sample we processed this file at
+            duration: length in seconds of the song
+            beat_timestamps: timestamps of what librosa determined to be the beat
+            channels_data: {channel_name: [channel RMS values]}
         """
         self.song_path = song_path
         self.song_data = song_data
@@ -73,24 +74,24 @@ class Visualizer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def render_channels(self, component_rms_values: Dict[str, float], is_beat: bool) -> None:
+    def render_channels(self, component_rms_values: dict[str, float], is_beat: bool) -> None:
         """Abstract method for derived class to render the channels while playing.
 
         Args:
-            component_rms_values (Dict[str, float]): _description_
-            is_beat (bool): {channel_name: [channel RMS values]}
+            component_rms_values: rms values to use to visualize heights
+            is_beatt: is this a beat
         """
         raise NotImplementedError
 
     @staticmethod
-    def get_component_value(data: Dict[str, List[float]], key: str, component: str, index: int) -> float:
+    def get_component_value(data: dict[str, list[float]], key: str, component: str, index: int) -> float:
         """Helper function to get the correct component data for a given channel.
 
         Args:
-            data (Dict[str, List[float]]): {channel_name: [channel RMS values]}
-            key (str): channel name
-            component (str): component in channel
-            index (int): index to pull
+            data: {channel_name: [channel RMS values]}
+            key: channel name
+            component: component in channel
+            index: index to pull
 
         Returns:
             float: value at the indexed keys
@@ -98,11 +99,11 @@ class Visualizer(ABC):
         return data[component][key][index]
 
     @staticmethod
-    def get_random_fill() -> Tuple[int, int, int]:
+    def get_random_fill() -> tuple[int, int, int]:
         """Get a random RGB color.
 
         Returns:
-            Tuple[int, int, int]: random RGB color
+            random RGB color
         """
         return (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
 
@@ -117,18 +118,16 @@ class BarVisualizer(Visualizer):
     BAR_GAP_PROPORTION = 0.1
     NUM_BARS = 4
 
-    def __init__(self, *args: List[Any], barcolors: List[str], background: Optional[str] = None) -> None:
+    def __init__(self, *args: list[Any], barcolors: list[str]) -> None:
         """Initialize a BarVisualizer.
 
         Args:
             barcolors (List[str]): colors for the bars
-            background (Optional[str], optional): background image. Defaults to None.
         """
         super().__init__(*args)
         if len(self.channels_data) != len(barcolors):
             raise ValueError('Number of channels and number of barcolors must match.')
         self.barcolors = barcolors
-        self.background = background
 
         pygame.init()
         self.display = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
@@ -156,7 +155,7 @@ class BarVisualizer(Visualizer):
             pygame.display.flip()
             current_bar_gap += self.bar_width + self.bar_gap_width
 
-    def render_channels(self, values: Dict[str, float]) -> None:
+    def render_channels(self, values: dict[str, float]) -> None:
         redraw = False
 
         for i, channel in enumerate(values):
